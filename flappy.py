@@ -9,7 +9,7 @@ from pygame.locals import *
 '''
 Training model: Q-Learning
     
-    <s_0 a_0 r_1, s_1, a_1, r_2,...> History array : for the action a_i taken in state s_i, the reward is r_(i+1).
+    <s_0 a_0 r_1, s_1 a_1 r_2,...> History array : for the action a_i taken in state s_i, the reward is r_(i+1).
     [S A R S'] Experience entry Where S is state, A is action, R is reward, S' is the next state which is the result of the action.
 
     Agent	: Bird
@@ -37,7 +37,7 @@ Training model: Q-Learning
         For all other actions, we award 1 point, since it is unclear if it is helping or hurting.
 '''
     
-alpha = 0.8			# learning rate alpha
+alpha = 0.6			# learning rate alpha
 prev_xyv = "420_240_0"		# Previous state. Initializing with the first state (maximum x and y distances)
 prev_action = 0			# first action defaulting to not jumping
 moves = []			# tracks the previous movements
@@ -95,6 +95,7 @@ def update(cause):
     top_pipe_collision = True if cause == 'U' else False
     bottom_pipe_collision = True if cause == 'L' else False
     fall_on_ground = True if cause == 'G' else False
+    print cause
 
     '''
      If bird falls on ground, we are penalizing each decision that caused the player to fall.
@@ -104,41 +105,43 @@ def update(cause):
     if top_pipe_collision:
         i = 1
         flag = True
-        flag1 = 0
         for exp in history:
             state = exp[0]
             act = exp[1]
             next_state = exp[2]
             if i <= 2:
-                qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (-1 + max(qvalues[next_state])))
+                qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (-1000 + max(qvalues[next_state])))
             else:
-                if act and flag:
-                    qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (-1 + max(qvalues[next_state])))
+                if act and flag: # penalise the first jump
+                    qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (-1000 + max(qvalues[next_state])))
                     flag = False
                 else:
                     qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (1 + max(qvalues[next_state])))
-    if bottom_pipe_collision:
+            i += 1
+    
+    elif bottom_pipe_collision:
         i = 1
         for exp in history:
             state = exp[0]
             act = exp[1]
             next_state = exp[2]
             if i <= 3:
-                qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (-1 + max(qvalues[next_state])))
+                qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (-1000 + max(qvalues[next_state])))
             else:
                 qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (1 + max(qvalues[next_state])))
-
-    if fall_on_ground:
+            i += 1
+    
+    elif fall_on_ground:
         i = 1
-        flag = True
         for exp in history:
             state = exp[0]
             act = exp[1]
             next_state = exp[2]
-            if i <= 3 and not act:
-                qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (-1 + max(qvalues[next_state])))
+            if i <= 5:
+                qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (-1000 + max(qvalues[next_state])))
             else:
                 qvalues[state][act] = ((1 - alpha) * qvalues[state][act]) + (alpha * (1 + max(qvalues[next_state])))
+            i += 1
 
     moves = [] 			# start over
 
@@ -151,7 +154,7 @@ def dump_json():
     print('Q-values updated')
 
 #############################################################  GAME
-FPS = 300
+FPS = 50
 SCREENWIDTH  = 288
 SCREENHEIGHT = 512
 # amount by which base can maximum shift to left
@@ -302,7 +305,7 @@ def showWelcomeAnimation():
     # player shm for up-down motion on welcome screen
     playerShmVals = {'val': 0, 'dir': 1}
 
-    SOUNDS['wing'].play()
+    #SOUNDS['wing'].play()
     return {
         'playery': playery + playerShmVals['val'],
         'basex': basex,
@@ -353,22 +356,21 @@ def mainGame(movementInfo):
 
         for event in pygame.event.get():
             if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
+                print "quitting"
+                dump_json()
                 pygame.quit()
                 sys.exit()
             if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP): # add another check here to see if bot is playing
                 if playery > -2 * IMAGES['player'][0].get_height():
                     playerVelY = playerFlapAcc
                     playerFlapped = True
-                    SOUNDS['wing'].play()
-            if event.type == pygame.QUIT:
-                print "quitting"
-                dump_json()
+                    #SOUNDS['wing'].play()
                 
         if(decide(-playerx + myPipe['x'], - playery + myPipe['y'], playerVelY )):
             if playery > -2 * IMAGES['player'][0].get_height():
                 playerVelY = playerFlapAcc
                 playerFlapped = True
-                SOUNDS['wing'].play()
+                #SOUNDS['wing'].play()
 
 
         # check for crash here
@@ -395,7 +397,7 @@ def mainGame(movementInfo):
             pipeMidPos = pipe['x'] + IMAGES['pipe'][0].get_width() / 2
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 score += 1
-                SOUNDS['point'].play()
+                #SOUNDS['point'].play()
 
         # playerIndex basex change
         if (loopIter + 1) % 3 == 0:
