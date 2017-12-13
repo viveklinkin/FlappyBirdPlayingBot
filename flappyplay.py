@@ -18,8 +18,21 @@ def decide(x, y, vel):
     
     if qvalues[curr_xyv][0] >= qvalues[curr_xyv][1]:
         return 0
+    print curr_xyv+'-jump'
     return 1
 
+def get_state_key(xdif, ydif, vel):
+    if xdif < 140:
+	xdif = int(xdif) - (int(xdif) % 10)
+    else:
+	xdif = int(xdif) - (int(xdif) % 70)
+
+    if ydif < 180:
+            ydif = int(ydif) - (int(ydif) % 10)
+    else:
+            ydif = int(ydif) - (int(ydif) % 60)
+
+    return str(int(xdif))+'_'+str(int(ydif))+'_'+str(vel)
 
 #*******************************************************GAME
 FPS = 30
@@ -174,7 +187,7 @@ def showWelcomeAnimation():
     playerShmVals = {'val': 0, 'dir': 1}
 
     while True:
-        for event in pygame.event.get():
+	for event in pygame.event.get():
             if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 pygame.quit()
                 sys.exit()
@@ -187,14 +200,6 @@ def showWelcomeAnimation():
                     'playerIndexGen': playerIndexGen,
                 }
 	
-	if decide(-playerx + myPipe['x'], - playery + myPipe['y'], playerVelY ):
-		 # make first flap sound and return values for mainGame
-                SOUNDS['wing'].play()
-                return {
-                    'playery': playery + playerShmVals['val'],
-                    'basex': basex,
-                    'playerIndexGen': playerIndexGen,
-                }
         # adjust playery, playerIndex, basex
         if (loopIter + 1) % 5 == 0:
             playerIndex = next(playerIndexGen)
@@ -214,6 +219,7 @@ def showWelcomeAnimation():
 
 
 def mainGame(movementInfo):
+    global FPS
     score = playerIndex = loopIter = 0
     playerIndexGen = movementInfo['playerIndexGen']
     playerx, playery = int(SCREENWIDTH * 0.2), movementInfo['playery']
@@ -252,6 +258,8 @@ def mainGame(movementInfo):
 
 
     while True:
+	if -playerx + lowerPipes[0]['x'] > -30: myPipe = lowerPipes[0]
+        else: myPipe = lowerPipes[1]
         for event in pygame.event.get():
             if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 pygame.quit()
@@ -262,6 +270,12 @@ def mainGame(movementInfo):
                     playerFlapped = True
                     SOUNDS['wing'].play()
 
+
+        if(decide(-playerx + myPipe['x'], - playery + myPipe['y'], playerVelY )):
+            if playery > -2 * IMAGES['player'][0].get_height():
+                playerVelY = playerFlapAcc
+                playerFlapped = True
+                SOUNDS['wing'].play()
         # check for crash here
         crashTest = checkCrash({'x': playerx, 'y': playery, 'index': playerIndex},
                                upperPipes, lowerPipes)
@@ -283,6 +297,11 @@ def mainGame(movementInfo):
             pipeMidPos = pipe['x'] + IMAGES['pipe'][0].get_width() / 2
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 score += 1
+		if(score > 10): FPS = 300
+		if(score > 40): FPS = 30
+		if(score > 50): FPS = 300
+		if(score > 100): FPS = 30
+		
                 SOUNDS['point'].play()
 
         # playerIndex basex change
